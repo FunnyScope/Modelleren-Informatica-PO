@@ -1,8 +1,20 @@
-patches-own [
-  patch_type
-  availability
+;variables
+globals [
+  iteration_variable
+  total_item_count
+  storage
 ]
 
+patches-own [
+  patch_type
+  available
+]
+
+turtles-own [
+  amount_of_items
+  desk_selected
+  distance_from_target
+]
 
 to setup
 
@@ -11,13 +23,19 @@ to setup
   create-turtles turtle_amount
 
   ask turtles [
+    ;Er is vast een function hiervoor maar ik ken die niet en ben te lui om 'm op te zoeken
+    set amount_of_items random 10
+    set amount_of_items amount_of_items + 1
 
+    set desk_selected false
+    set distance_from_target 0
 
   ]
 
   ask patches [
-    set patch_type "standard"
-    set availability true
+    set patch_type "non_queue"
+    set available true
+
 
     make_desks
   ]
@@ -27,21 +45,119 @@ to setup
 
 end
 
+
 to make_desks
 
-  ask patches with [pycor = -10 and pxcor = 0] [
+  set iteration_variable desk_amount
 
-    set pcolor red
-    set patch_type "desk"
 
+  while [iteration_variable > 0] [
+
+
+    ;Ja ik weet ook niet waar ik aan zit te denken met de wiskunde daar, het kan veel mooier, maar het werkt
+    ask patches with [pycor = -10 and pxcor = 12 / desk_amount * iteration_variable - distance_away] [
+
+
+      set pcolor red
+      set patch_type desk_type
+
+    ]
+
+    set iteration_variable iteration_variable - 1
+  ]
+
+
+
+end
+
+to-report distance_away
+
+  ;Onderstaande is verschrikkelijk, maar ik had geen zin om de precieze correcte syntax hiervoor uit te vogelen
+  ;Toch echt wel een punt van irritatie, dit soort gezeik
+  ifelse desk_amount = 4 [
+    report 7
+  ] [
+    ifelse desk_amount = 3 [
+      report 8
+    ] [
+      report 9
+    ]
   ]
 
 
 end
 
-
 to go
+  ;total item count om te checken of ze allemaal klaar zijn
+  set total_item_count 0
+  ask turtles [
+
+    ;Kijkt of er een desk is geselecteerd, en of er een desk beschikbaar is, en stelt dit in als bestemming
+    if not desk_selected and any? patches with [patch_type = desk_type and available = true] [
+      face min-one-of patches with [patch_type = desk_type and available = true] [distance myself]
+      set desk_selected true
+
+      ask min-one-of patches with [patch_type = desk_type and available = true] [distance myself] [
+        set available false
+        set storage self
+      ]
+
+      set distance_from_target distance storage
+
+    ]
+
+    ;Als er een desk geselecteerd is, kijk of je op het ding staat, als dit zo is, haal een item er vanaf, behalve als je geen items meer hebt, ga dan weg en maak
+    ;het ding weer beschikbaar
+    if desk_selected [
+      ifelse distance_from_target < 0 and distance_from_target > -1 [
+        ifelse amount_of_items <= 0 [
+
+          ask min-one-of patches with [patch_type = desk_type] [distance myself] [
+            set available true
+          ]
+          fd 1
+          set distance_from_target distance_from_target - 1
+
+        ] [
+
+          set amount_of_items amount_of_items - 1
+        ]
+
+      ] [
+        fd 1
+        set distance_from_target distance_from_target - 1
+      ]
+
+
+
+    ]
+
+    set total_item_count total_item_count + amount_of_items
+  ]
+
   tick
+
+  if total_item_count = 0 [ stop ]
+
+end
+
+;Irritatiehoekje
+;Eerst wilde ik een array maken met daarin de coördinaten van de desks zodat op basis daarvan de turtles weten of ze op een desk staan. Helaas kan je geen pxcor en pycor, of ook maar
+;iets dat geen literal, is in een array stoppen. Wie heeft dat in vredesnaam bedacht? Ik heb een uur lang geprobeerd alsnog iets ervan te maken, en het is me niet eens gelukt. Waar heb
+;ik dat aan verdiend? Welke misdaad heb ik gepleegd, dat ik zo moest worden gestraft?
+
+;Onderstaande handig voor o.a. debugging
+to plot_total_items
+  set total_item_count 0
+  ask turtles [
+    set total_item_count amount_of_items + total_item_count
+  ]
+  plot total_item_count
+end
+to debugButton
+  ask patches with [patch_type = desk_type] [
+    show available
+  ]
 
 end
 @#$#@#$#@
@@ -59,8 +175,8 @@ GRAPHICS-WINDOW
 1
 1
 0
-1
-1
+0
+0
 1
 -16
 16
@@ -98,7 +214,7 @@ turtle_amount
 turtle_amount
 10
 50
-10.0
+50.0
 1
 1
 turtles
@@ -129,7 +245,7 @@ CHOOSER
 desk_type
 desk_type
 "standard" "one queue"
-0
+1
 
 SLIDER
 34
@@ -140,11 +256,46 @@ desk_amount
 desk_amount
 2
 4
-2.0
+4.0
 1
 1
 NIL
 HORIZONTAL
+
+PLOT
+715
+84
+915
+234
+Items over time
+Ticks
+Items
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot_total_items"
+
+BUTTON
+842
+420
+950
+453
+Debug button
+debugButton
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
